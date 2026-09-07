@@ -123,9 +123,18 @@ alter table public.dashboard_records
 --  where schemaname = 'public' and tablename = 'dashboard_records'
 --  order by policyname;
 
--- 3. The real test: a signed-out caller must see nothing. Run this from
---    the SQL editor with the role set to anon.
+-- 3. The real test: a signed-out caller must see nothing.
 --
--- set local role anon;
--- select count(*) from public.dashboard_records;  -- expect 0, not an error, not a count
--- reset role;
+--    Wrapped in begin/rollback deliberately. SET LOCAL only applies inside
+--    a transaction block — run it on its own and Postgres warns and does
+--    nothing, so the count comes back as the superuser and the check
+--    quietly passes while having tested nothing at all.
+--
+-- begin;
+--   set local role anon;
+--   select count(*) from public.dashboard_records;   -- expect 0
+-- rollback;
+--
+--    Expect 0. A "permission denied for table" error is also a pass — that
+--    is the role being refused before RLS is even consulted. What would be
+--    a failure is an actual count of your rows.
