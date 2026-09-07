@@ -1,6 +1,6 @@
 {
-  "name": "Dashboard",
-  "short_name": "Dashboard",
+  "name": "Planner",
+  "short_name": "Planner",
   "description": "Priorities, schedule, goals and teams in one place",
   "start_url": "/",
   "scope": "/",
