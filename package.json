@@ -1,0 +1,12 @@
+{
+  "name": "dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Personal dashboard: tasks, homework, classes, meetings and team fixtures. Static site, no build step.",
+  "scripts": {
+    "serve": "python -m http.server 5599 --bind 127.0.0.1",
+    "test": "node --test tests/*.test.js",
+    "teams": "node tools/fetch-teams.js",
+    "icons": "node tools/make-icons.js"
+  }
+}

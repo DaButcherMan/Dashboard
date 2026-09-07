@@ -1,0 +1,6 @@
+# Editor / OS noise
+*.bak
+.DS_Store
+Thumbs.db
+
+# Nothing here is built, and nothing here is installed.

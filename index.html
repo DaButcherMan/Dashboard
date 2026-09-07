@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F1A2C">
+<meta name="description" content="Personal dashboard: priorities, schedule, goals and teams.">
+<title>Dashboard</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="images/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="images/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/dashboard.css">
+<script>
+  // Set the theme before first paint so there is no flash of the wrong one.
+  (function () {
+    try {
+      var s = JSON.parse(localStorage.getItem('dashboard.v2') || '{}');
+      var t = (s.settings && s.settings.theme) || 'system';
+      if (t === 'system') {
+        t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  })();
+</script>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ── Sidebar ──────────────────────────────────────────────────── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark" id="brand-mark"></div>
+      <div>
+        <div class="brand-name">Dashboard</div>
+        <div class="brand-sub" id="brand-sub">Personal</div>
+      </div>
+    </div>
+
+    <div class="nav-label">Main</div>
+    <nav id="nav-main"></nav>
+
+    <div class="nav-label">Areas</div>
+    <nav id="nav-areas"></nav>
+
+    <div class="nav-label">More</div>
+    <nav id="nav-more"></nav>
+
+    <div class="sidebar-foot">
+      <button class="nav-item" id="theme-toggle"></button>
+    </div>
+  </aside>
+
+  <!-- ── Main ─────────────────────────────────────────────────────── -->
+  <div class="main">
+    <header class="topbar">
+      <button class="btn icon ghost mobile-only" id="menu-btn" aria-label="Menu"></button>
+      <div>
+        <h1 id="page-title">Overview</h1>
+        <div class="sub" id="page-sub"></div>
+      </div>
+      <span class="spacer"></span>
+      <button class="btn sm" data-act="new-event" aria-label="New event">
+        <span id="ic-cal"></span><span class="lbl">Event</span></button>
+      <button class="btn sm primary" data-act="new-task" aria-label="New task">
+        <span id="ic-plus"></span><span class="lbl">Task</span></button>
+    </header>
+
+    <div class="content">
+
+      <!-- ── Overview ─────────────────────────────────────────────── -->
+      <section class="view" id="view-overview">
+        <div id="nowbar-slot"></div>
+
+        <div class="grid stats" id="ov-stats"></div>
+
+        <div class="grid split mt">
+          <!-- Today's Priorities is the page's centre of gravity. -->
+          <div class="card feature">
+            <div class="card-head">
+              <h2>Today&rsquo;s Priorities</h2>
+              <span class="count" id="pri-count"></span>
+              <span class="spacer"></span>
+              <button class="btn sm ghost" data-act="goto" data-view="tasks">All tasks</button>
+            </div>
+            <div class="card-body" id="ov-priorities"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h2>Upcoming Schedule</h2>
+              <span class="spacer"></span>
+              <button class="btn sm ghost" data-act="goto" data-view="calendar">Calendar</button>
+            </div>
+            <div class="card-body" id="ov-timeline"></div>
+          </div>
+        </div>
+
+        <div class="grid thirds mt">
+          <div class="card">
+            <div class="card-head">
+              <h2>Weekly Progress</h2>
+              <span class="spacer"></span>
+              <span class="count" id="wk-range"></span>
+            </div>
+            <div class="card-body tight" id="ov-week"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h2>Goals</h2>
+              <span class="spacer"></span>
+              <button class="btn sm ghost" data-act="new-goal">Add</button>
+            </div>
+            <div class="card-body" id="ov-goals"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h2>Quick Actions</h2></div>
+            <div class="qa-grid" id="ov-quick"></div>
+          </div>
+        </div>
+
+        <div class="grid halves mt">
+          <div class="card">
+            <div class="card-head">
+              <h2>Areas</h2>
+              <span class="spacer"></span>
+              <span class="count">Open tasks</span>
+            </div>
+            <div class="card-body" id="ov-areas"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h2>My Teams</h2>
+              <span class="spacer"></span>
+              <button class="btn sm ghost icon" data-act="refresh-sports" aria-label="Refresh"
+                      id="ic-refresh-slot"></button>
+            </div>
+            <div class="card-body" id="ov-sports"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Tasks ────────────────────────────────────────────────── -->
+      <section class="view" id="view-tasks">
+        <div class="card">
+          <form class="quickadd" id="quick-form">
+            <input type="text" id="quick-input" placeholder="Add a task&hellip;" autocomplete="off">
+            <select id="quick-area" aria-label="Area"></select>
+            <input type="date" id="quick-due" aria-label="Due date">
+            <button class="btn primary" type="submit">Add</button>
+            <!-- type="button": inside a <form>, a button defaults to submit,
+                 which would fire the quick-add on the way to the dialog. -->
+            <button class="btn paste-btn" type="button" data-act="paste-assignments">
+              <span id="ic-paste"></span>Paste assignments</button>
+          </form>
+          <div class="card-head">
+            <div class="segmented" id="task-filters">
+              <button data-act="filter" data-filter="open">Open</button>
+              <button data-act="filter" data-filter="today">Today</button>
+              <button data-act="filter" data-filter="week">7 days</button>
+              <button data-act="filter" data-filter="done">Done</button>
+              <button data-act="filter" data-filter="all">All</button>
+            </div>
+            <span class="spacer"></span>
+            <span class="count" id="task-count"></span>
+          </div>
+          <div class="card-body" id="task-list"></div>
+        </div>
+      </section>
+
+      <!-- ── Calendar ─────────────────────────────────────────────── -->
+      <section class="view" id="view-calendar">
+        <!-- Fixed-position, but nested inside the view so it disappears with
+             it: a .view is display:none when inactive, which takes its fixed
+             children with it. No per-route bookkeeping needed. -->
+        <button class="calfab" id="cal-fab" data-act="cal-expand" hidden>
+          <span id="cal-fab-ic"></span><span class="lbl">Calendar</span>
+        </button>
+
+        <div class="card" id="cal-month-card">
+          <div class="card-head">
+            <h2 id="cal-title">Calendar</h2>
+            <span class="spacer"></span>
+            <button class="btn sm ghost" data-act="cal-today">Today</button>
+            <button class="btn sm icon" data-act="cal-month" data-dir="-1"
+                    id="cal-prev" aria-label="Previous month"></button>
+            <button class="btn sm icon" data-act="cal-month" data-dir="1"
+                    id="cal-next" aria-label="Next month"></button>
+          </div>
+          <div class="monthgrid" id="cal-grid"></div>
+        </div>
+
+        <div class="card mt">
+          <div class="card-head">
+            <h2 id="cal-week-title">This week</h2>
+            <span class="spacer"></span>
+            <span class="count" id="cal-week-count"></span>
+          </div>
+          <div class="card-body" id="cal-body"></div>
+        </div>
+
+        <div class="card mt">
+          <div class="card-head">
+            <h2>Classes</h2>
+            <span class="spacer"></span>
+            <button class="btn sm ghost" data-act="new-course">Add class</button>
+          </div>
+          <div class="card-body" id="cal-classes"></div>
+        </div>
+      </section>
+
+      <!-- ── Area (School / Work / Fitness / Family / Finances) ────── -->
+      <section class="view" id="view-area">
+        <!-- Fitness only: three logs behind one switcher. -->
+        <div class="segmented tabbar" id="fitness-tabs" hidden>
+          <button data-act="fitness-tab" data-tab="weight">Weight</button>
+          <button data-act="fitness-tab" data-tab="peptides">Peptides</button>
+          <button data-act="fitness-tab" data-tab="workouts">Workouts</button>
+        </div>
+
+        <div class="card feature" id="area-peptide-card" hidden>
+          <div class="card-head">
+            <h2>Peptides</h2>
+            <span class="spacer"></span>
+            <button class="btn sm" data-act="log-dose">Log dose</button>
+            <button class="btn sm primary" data-act="new-protocol">
+              <span id="ic-proto"></span>Protocol</button>
+          </div>
+          <div class="card-body" id="peptide-body"></div>
+        </div>
+
+        <div class="card feature" id="area-workout-card" hidden>
+          <div class="card-head wo-head">
+            <button class="btn sm icon" data-act="wo-day" data-dir="-1"
+                    id="wo-prev" aria-label="Previous day"></button>
+            <h2 id="wo-date">Today</h2>
+            <button class="btn sm icon" data-act="wo-day" data-dir="1"
+                    id="wo-next" aria-label="Next day"></button>
+            <button class="btn sm ghost" data-act="wo-today" id="wo-today">Today</button>
+            <span class="spacer"></span>
+            <button class="btn sm primary" data-act="wo-pick-exercise">
+              <span id="ic-wo"></span>Add exercise</button>
+          </div>
+          <div class="card-body" id="workout-body"></div>
+        </div>
+
+        <div class="card feature" id="area-weight-card" hidden>
+          <div class="card-head">
+            <h2>Weight</h2>
+            <span class="spacer"></span>
+            <div class="segmented" id="weight-range">
+              <button data-act="weight-range" data-days="30">30d</button>
+              <button data-act="weight-range" data-days="90">90d</button>
+              <button data-act="weight-range" data-days="365">1y</button>
+              <button data-act="weight-range" data-days="0">All</button>
+            </div>
+            <button class="btn sm primary" data-act="log-weight">
+              <span id="ic-logw"></span>Log weight</button>
+          </div>
+          <div class="card-body" id="weight-body"></div>
+        </div>
+
+        <div class="grid stats" id="area-stats"></div>
+
+        <div class="grid split mt" id="area-main">
+          <div class="card feature">
+            <div class="card-head">
+              <h2 id="area-tasks-title">Tasks</h2>
+              <span class="spacer"></span>
+              <button class="btn sm ghost" data-act="new-task-area">Add task</button>
+            </div>
+            <div class="card-body" id="area-tasks"></div>
+          </div>
+          <div>
+            <div class="card">
+              <div class="card-head">
+                <h2>Upcoming</h2>
+              </div>
+              <div class="card-body" id="area-timeline"></div>
+            </div>
+            <div class="card mt">
+              <div class="card-head">
+                <h2>Goals</h2>
+                <span class="spacer"></span>
+                <button class="btn sm ghost" data-act="new-goal-area">Add</button>
+              </div>
+              <div class="card-body" id="area-goals"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt" id="area-classes-card">
+          <div class="card-head">
+            <h2>Classes</h2>
+            <span class="spacer"></span>
+            <button class="btn sm ghost" data-act="new-course">Add class</button>
+          </div>
+          <div class="card-body" id="area-classes"></div>
+        </div>
+      </section>
+
+      <!-- ── Sports ───────────────────────────────────────────────── -->
+      <section class="view" id="view-sports">
+        <!-- Collapsed by default; opened by "Add team" in the header below.
+             The teams you already follow sit at its foot, where they are
+             useful precisely while you are editing the list. -->
+        <div class="card" id="picker-card" hidden>
+          <!-- Title, count, Done and the league/search controls travel
+               together as one sticky block, so everything you need while
+               browsing hundreds of teams stays on screen. Sticking them as
+               one element avoids doing height arithmetic between two. -->
+          <div class="picker-sticky">
+            <div class="card-head">
+              <h2>Add teams</h2>
+              <span class="spacer"></span>
+              <span class="count" id="picker-count"></span>
+              <button class="btn sm primary" data-act="toggle-picker">Done</button>
+            </div>
+            <div class="picker-bar">
+              <select id="league-select" aria-label="League"></select>
+              <input type="text" id="team-search" placeholder="Search teams&hellip;"
+                     autocomplete="off">
+            </div>
+          </div>
+          <div class="card-body pad">
+            <div class="teamgrid" id="team-grid"></div>
+          </div>
+          <div class="card-foot fav-foot">
+            <span class="foot-label">Following</span>
+            <div id="fav-list"></div>
+          </div>
+        </div>
+
+        <div class="card" id="fixtures-card">
+          <div class="card-head">
+            <h2>Fixtures &amp; results</h2>
+            <span class="spacer"></span>
+            <div class="segmented" id="sports-tabs"></div>
+            <button class="btn sm ghost icon" data-act="refresh-sports"
+                    aria-label="Refresh scores" id="refresh-btn"></button>
+            <button class="btn sm" data-act="toggle-picker" id="picker-toggle"
+                    aria-expanded="false" aria-controls="picker-card"></button>
+          </div>
+          <div class="card-body" id="sports-body"></div>
+        </div>
+      </section>
+
+      <!-- ── Settings ─────────────────────────────────────────────── -->
+      <section class="view" id="view-settings">
+        <div class="grid halves">
+          <div class="card">
+            <div class="card-head"><h2>General</h2></div>
+            <div class="card-body pad">
+              <label class="field"><span>Your name</span>
+                <input type="text" id="set-name" placeholder="Shown in the greeting"></label>
+
+              <label class="field"><span>Weekly task target</span>
+                <input type="number" id="set-target" min="1" max="200"></label>
+
+              <div class="field-row">
+                <label class="field"><span>Weight unit</span>
+                  <select id="set-wunit">
+                    <option value="lb">Pounds (lb)</option>
+                    <option value="kg">Kilograms (kg)</option>
+                  </select></label>
+                <label class="field"><span>Target weight</span>
+                  <input type="number" id="set-wtarget" step="0.1" min="0"
+                         placeholder="Optional"></label>
+              </div>
+
+              <label class="field"><span>Theme</span>
+                <select id="set-theme">
+                  <option value="system">Match system</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select></label>
+
+              <span class="field"><span>Backup</span></span>
+              <div style="display:flex; gap:8px; flex-wrap:wrap">
+                <button class="btn" data-act="export">Export JSON</button>
+                <button class="btn" data-act="import">Import backup</button>
+                <input type="file" id="import-file" accept="application/json" hidden>
+              </div>
+              <p class="hint" style="margin-top:12px">
+                Data is stored in this browser only. Export now and then so a cleared
+                cache does not take your term with it.
+              </p>
+            </div>
+          </div>
+
+          <div class="card" id="sync-card">
+            <div class="card-head">
+              <h2>Sync</h2>
+              <span class="spacer"></span>
+              <span class="count" id="sync-state"></span>
+            </div>
+            <div class="card-body pad" id="sync-body"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h2>Calendar sources</h2></div>
+            <div class="card-body pad">
+              <p class="hint" style="margin-top:0">
+                Canvas, Outlook and Google publish subscribable <code>.ics</code> feeds, but
+                none send CORS headers — a browser cannot read them across origins. Either
+                set a proxy, or use <b>Paste</b> for a one-off import.
+              </p>
+
+              <label class="field" style="margin-top:14px"><span>Proxy URL (optional)</span>
+                <input type="url" id="set-proxy" placeholder="https://your-worker.dev/?url={url}"></label>
+
+              <div id="source-rows"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- Sits outside .app so it is never a grid child. -->
+<div class="scrim" id="scrim"></div>
+
+<!-- ── Mobile bottom navigation ───────────────────────────────────── -->
+<nav class="bottomnav" id="bottomnav"></nav>
+
+<!-- ── Modal ──────────────────────────────────────────────────────── -->
+<div class="modal-back" id="modal-back">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <header><h3 id="modal-title"></h3></header>
+    <div class="body" id="modal-body"></div>
+    <footer>
+      <button class="btn danger" id="modal-del">Delete</button>
+      <span class="spacer"></span>
+      <button class="btn" id="modal-cancel">Cancel</button>
+      <button class="btn primary" id="modal-save">Save</button>
+    </footer>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/util.js"></script>
+<script src="js/store.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/agenda.js"></script>
+<script src="js/ics.js"></script>
+<script src="js/sync.js"></script>
+<script src="js/canvas.js"></script>
+<script src="js/weight.js"></script>
+<script src="js/peptides.js"></script>
+<script src="js/exercises.js"></script>
+<script src="js/workouts.js"></script>
+<script src="js/sports.js"></script>
+<script src="js/app.js"></script>
+<script>
+  DASH.App.init();
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>
