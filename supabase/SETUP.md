@@ -70,7 +70,26 @@ if you want the link to work too.
 | `anon` `public` | `SUPABASE_ANON_KEY` |
 
 Reload, open **Settings → Sync**, enter your email, and type the code that
-arrives. Then do exactly the same on your phone, with the same email
+arrives.
+
+### One thing to glance at first
+
+Signing in here uses that project's `auth.users`, which the other app
+shares. If your email is already a user there, nothing happens — you get
+the same account and the same id, which is what you want.
+
+If it is *not*, signing in creates one. Check whether that project has a
+trigger on `auth.users` (a `handle_new_user` function, or anything that
+writes a profile or roster row on signup) before you do, or you may find
+yourself added to your own team list. Database → Triggers, or:
+
+```sql
+select tgname, tgrelid::regclass
+  from pg_trigger
+ where tgrelid = 'auth.users'::regclass and not tgisinternal;
+```
+
+No rows back means nothing to worry about. Then do exactly the same on your phone, with the same email
 address — same address means same account means the same dashboard.
 
 ### The one key that must never go in this repo
