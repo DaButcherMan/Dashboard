@@ -37,16 +37,26 @@ template, e.g.:
 Keep the existing `{{ .ConfirmationURL }}` link if you like — it still
 works in a desktop browser. But the **code** is what you will actually use.
 
-### Why a code and not a link
+### Why bother with the code
 
-Tapping a link in your phone's mail app opens your browser. An app you have
-installed to the home screen has its own separate storage, so the session
-lands in Safari or Chrome and the icon you actually tap stays signed out,
-with nothing on screen explaining why. A code is typed into whichever copy
-of the app is asking for it, so it signs in the right one.
+Because of one case, and only one: **an iPhone, with this installed to the
+home screen.** iOS gives a home-screen web app its own WebKit storage
+container, separate from Safari's, and it opens links from Mail in Safari —
+so tapping the link writes the session into Safari while the icon you
+actually tap stays signed out, with nothing on screen explaining why.
 
-This is also why there is nothing to configure under **URL Configuration**.
-Codes need no redirect, so your other app's auth settings stay untouched.
+Everywhere else the link is fine, and it is fewer steps. Android shares
+storage between Chrome and an installed app, and a mobile browser you have
+not installed to the home screen has only one container anyway. If you have
+used magic links elsewhere without trouble, this is why.
+
+Both are live, so use whichever works: tap the link if it signs you in,
+type the code if it doesn't.
+
+Keeping to codes does have one side benefit — they need no redirect, so
+there is nothing to change under **URL Configuration** and the other app in
+that project keeps its auth settings untouched. Add your domain there only
+if you want the link to work too.
 
 ## 3. Paste the keys
 

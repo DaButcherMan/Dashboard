@@ -300,17 +300,20 @@ window.DASH = window.DASH || {};
       return inFlight;
     },
 
-    // Sends a 6-digit code, not a link to click.
+    // Sends the sign-in one-time password. Supabase presents the same OTP
+    // two ways — as a link and as a 6-digit code — and both work, so this
+    // app offers the code and the emailed link keeps working as normal.
     //
-    // A link is the wrong shape for a phone. Tapping it in Mail opens the
-    // browser, and an app installed to the home screen has its own storage
-    // container — so the session lands in Safari and the icon you actually
-    // tap stays signed out, with nothing on screen explaining why. A code
-    // is typed into whichever copy of the app is asking for it, so it signs
-    // in the right one by construction.
+    // The code exists for one case: an iOS web app installed to the home
+    // screen. That gets its own WebKit storage container, separate from
+    // Safari's, and iOS opens http links from Mail in Safari — so the
+    // session is written to Safari while the icon you actually tap stays
+    // signed out, with nothing on screen explaining why. A code is typed
+    // into whichever copy is asking, so it signs in the right one.
     //
-    // The emailed link still works as a fallback if you are in a browser;
-    // Supabase sends both once the template includes the token.
+    // Everywhere else the link is fine and fewer steps: Android shares
+    // storage between Chrome and an installed PWA, and an uninstalled
+    // mobile browser has only the one container to begin with.
     async signIn(email) {
       if (!client) throw new Error('Sync is not configured yet.');
       const { error } = await client.auth.signInWithOtp({
