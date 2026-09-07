@@ -34,8 +34,10 @@ template, e.g.:
 <p>Your dashboard code is <b>{{ .Token }}</b></p>
 ```
 
-Keep the existing `{{ .ConfirmationURL }}` link if you like — it still
-works in a desktop browser. But the **code** is what you will actually use.
+Keep the existing `{{ .ConfirmationURL }}` link alongside it. Both are the
+same one-time password shown two ways, and both sign you in, so the email
+carries a link to tap and a code to type and you use whichever suits the
+device in your hand.
 
 ### Why bother with the code
 
