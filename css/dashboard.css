@@ -1245,3 +1245,37 @@ input:focus, select:focus, textarea:focus {
 .backup-stats { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
 .backup-stats .hint { margin: 0; }
 .hint.warn { color: var(--warn); }
+
+/* ── Lock screen ──────────────────────────────────────────────────────
+   Full-bleed cover rather than a modal: there is nothing behind it to
+   interact with, so it should not look like something you can dismiss. */
+.lockscreen {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  background: var(--bg);
+}
+.lockcard {
+  width: 100%; max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 28px 24px;
+  box-shadow: var(--shadow-lg);
+}
+.lockcard h1 {
+  font-size: 22px; font-weight: 650; letter-spacing: -0.01em;
+  margin: 14px 0 4px;
+}
+.lockmark {
+  width: 40px; height: 40px; border-radius: 11px;
+  display: grid; place-items: center;
+  background: var(--accent); color: #fff;
+}
+.lockmark svg { width: 22px; height: 22px; }
+.lockcard .field { margin-top: 16px; }
+.lockcard .btn { width: 100%; justify-content: center; margin-top: 12px; }
+.lockcard .hint { margin-top: 14px; }
+/* Hidden rather than removed, so nothing reflows when the gate lifts. */
+body.locked .app,
+body.locked .bottomnav { display: none; }

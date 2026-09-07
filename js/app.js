@@ -1633,6 +1633,60 @@ window.DASH = window.DASH || {};
       </p>`;
   }
 
+  // ── Lock screen ─────────────────────────────────────────────────────
+  // Shown only when a Supabase project is configured. Three states:
+  //   checking — the session is being restored; we do not yet know
+  //   signin   — no session; ask for an email
+  //   code     — a code has been sent; ask for it
+  //
+  // Deliberately NOT shown when this device has signed in before but
+  // cannot reach the server right now. Locking someone out of their own
+  // offline planner because a token could not refresh would break the one
+  // property the whole app is built around. The trade is that this gate
+  // keeps out strangers, not someone holding your unlocked phone.
+  let lockStep = 'checking';
+  let lockEmail = '';
+
+  function gateOpen() {
+    const C = D.Cloud;
+    if (!C.configured) return true;                    // nothing to sign in to
+    if (C.signedIn) return true;
+    // Known device, no connection: let them in on the local copy.
+    if (S().syncMeta.userId && navigator.onLine === false) return true;
+    return false;
+  }
+
+  function renderLock() {
+    const open = gateOpen();
+    document.body.classList.toggle('locked', !open);
+    D.el('#lock').hidden = open;
+    if (open) return;
+
+    const body = D.el('#lock-body');
+    if (lockStep === 'checking') {
+      body.innerHTML = '<p class="hint">Checking your sign-in&hellip;</p>';
+      return;
+    }
+    if (lockStep === 'code') {
+      body.innerHTML = `
+        <p class="hint">Enter the 6-digit code sent to <b>${esc(lockEmail)}</b>.</p>
+        <label class="field"><span>Code</span>
+          <input type="text" id="lock-code" inputmode="numeric" maxlength="6"
+                 autocomplete="one-time-code" placeholder="123456"></label>
+        <button class="btn primary" data-act="lock-verify">Sign in</button>
+        <button class="btn ghost" data-act="lock-restart">Use a different email</button>`;
+      const f = D.el('#lock-code'); if (f) setTimeout(() => f.focus(), 60);
+      return;
+    }
+    body.innerHTML = `
+      <p class="hint">Sign in to open your planner.</p>
+      <label class="field"><span>Email</span>
+        <input type="email" id="lock-email" placeholder="you@example.com"
+               autocomplete="email"></label>
+      <button class="btn primary" data-act="lock-signin">Email me a code</button>
+      <p class="hint">No password — a code arrives by email.</p>`;
+  }
+
   // ── Backup ──────────────────────────────────────────────────────────
   // Set once at startup by the persistence request, so the panel can say
   // whether the browser has agreed to keep this data or merely not to
@@ -2504,6 +2558,36 @@ window.DASH = window.DASH || {};
 
     'cloud-restart'() { syncPending = ''; renderCloud(); },
 
+    async 'lock-signin'() {
+      const email = (D.el('#lock-email').value || '').trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return D.toast('Enter your email address');
+      const btn = D.el('[data-act=lock-signin]');
+      if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+      try {
+        await D.Cloud.signIn(email);
+        lockEmail = email; lockStep = 'code'; renderLock();
+      } catch (e) {
+        D.toast(e.message || 'Could not send the code');
+        renderLock();
+      }
+    },
+
+    async 'lock-verify'() {
+      const code = (D.el('#lock-code').value || '').replace(/\D/g, '');
+      if (code.length < 6) return D.toast('Enter the 6-digit code');
+      const btn = D.el('[data-act=lock-verify]');
+      if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+      try {
+        await D.Cloud.verify(lockEmail, code);
+        renderLock();
+      } catch (e) {
+        D.toast(e.message || 'That code did not work');
+        renderLock();
+      }
+    },
+
+    'lock-restart'() { lockStep = 'signin'; lockEmail = ''; renderLock(); },
+
     async 'cloud-signout'() {
       await D.Cloud.signOut();
       renderCloud();
@@ -3033,6 +3117,7 @@ window.DASH = window.DASH || {};
 
     // Static icon slots.
     D.el('#brand-mark').innerHTML = D.icon('grid');
+    D.el('#lock-mark').innerHTML = D.icon('grid');
     D.el('#ic-plus').outerHTML = D.icon('plus');
     D.el('#ic-cal').outerHTML = D.icon('calendar');
     const rs = D.el('#ic-refresh-slot');
@@ -3071,8 +3156,19 @@ window.DASH = window.DASH || {};
 
     // Last, and unawaited: sync must never hold up first paint, and the app
     // is fully usable whether or not it is configured or reachable.
-    D.Cloud.onStatus(() => { if (view === 'settings') renderCloud(); });
-    D.Cloud.init();
+    // Locked first, opened once we know: defaulting to closed means a slow
+    // session restore never flashes the planner at someone who cannot open it.
+    renderLock();
+    D.Cloud.onStatus(() => {
+      if (lockStep === 'checking' && !D.Cloud.signedIn) lockStep = 'signin';
+      renderLock();
+      if (view === 'settings') renderCloud();
+      render();
+    });
+    D.Cloud.init().then(() => {
+      if (lockStep === 'checking') lockStep = 'signin';
+      renderLock();
+    });
 
     // Unawaited: this is a request the browser may take its time over, and
     // nothing on screen depends on the answer.

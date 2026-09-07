@@ -424,6 +424,19 @@
   </div><!-- /main -->
 </div><!-- /app -->
 
+<!-- ── Lock screen ────────────────────────────────────────────────────
+     Covers the app until you have signed in. Only ever shown when a
+     Supabase project is configured; with no backend there is no account to
+     sign in to, and a gate over data that never leaves this browser would
+     be decoration. -->
+<div class="lockscreen" id="lock" hidden>
+  <div class="lockcard">
+    <div class="lockmark" id="lock-mark"></div>
+    <h1>Planner</h1>
+    <div id="lock-body"></div>
+  </div>
+</div>
+
 <!-- Sits outside .app so it is never a grid child. -->
 <div class="scrim" id="scrim"></div>
 
