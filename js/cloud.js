@@ -37,7 +37,20 @@ window.DASH = window.DASH || {};
   const EPOCH = '1970-01-01T00:00:00.000Z';
 
   const cfg = () => (D.CONFIG || {});
-  const configured = () => !!(cfg().SUPABASE_URL && cfg().SUPABASE_ANON_KEY);
+
+  // The Supabase dashboard shows several URLs on one page, and the REST
+  // endpoint (…supabase.co/rest/v1/) is the easiest to copy by mistake.
+  // supabase-js wants the bare project origin and appends its own paths, so
+  // that paste would produce …/rest/v1/rest/v1/… and 404 everything while
+  // looking, from the outside, like a wrong sign-in code. Trim to the origin
+  // rather than trusting the paste.
+  function projectUrl() {
+    const raw = String(cfg().SUPABASE_URL || '').trim();
+    if (!raw) return '';
+    try { return new URL(raw).origin; } catch (e) { return raw.replace(/\/+$/, ''); }
+  }
+
+  const configured = () => !!(projectUrl() && cfg().SUPABASE_ANON_KEY);
 
   let client = null;
   let session = null;
@@ -265,7 +278,7 @@ window.DASH = window.DASH || {};
         return;
       }
 
-      client = window.supabase.createClient(cfg().SUPABASE_URL, cfg().SUPABASE_ANON_KEY, {
+      client = window.supabase.createClient(projectUrl(), cfg().SUPABASE_ANON_KEY, {
         auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
       });
 
