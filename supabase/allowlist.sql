@@ -53,9 +53,18 @@ stable
 security definer
 set search_path = public
 as $$
+  -- Resolved from auth.users by user id, NOT from the token's email claim.
+  -- That claim is not guaranteed to be present on every access token, and
+  -- when it is missing the comparison silently becomes '' = <list>, which
+  -- is false for everybody — a refusal that looks exactly like a wrong
+  -- entry in the table and sends you hunting for a typo that is not there.
+  -- The id is always in the token.
   select exists (
-    select 1 from public.dashboard_members
-     where lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+    select 1
+      from auth.users u
+      join public.dashboard_members m
+        on lower(m.email) = lower(u.email)
+     where u.id = auth.uid()
   );
 $$;
 
@@ -96,8 +105,20 @@ create policy "dashboard records are deletable by their owner"
 --  Verify
 -- ═══════════════════════════════════════════════════════════════════════
 
--- 1. Who is on the list.
--- select email, note, added_at from public.dashboard_members order by added_at;
+-- 1. Who is on the list, and does each account actually match one?
+--    `matches` false on your own row is the whole problem, and the two
+--    email columns side by side usually show why: a typo, a stray space,
+--    or a different address than the one you signed in with.
+--
+-- select u.email                     as signed_up_as,
+--        m.email                     as on_the_list,
+--        (m.email is not null)       as matches,
+--        u.created_at
+--   from auth.users u
+--   left join public.dashboard_members m
+--     on lower(m.email) = lower(u.email)
+--  order by u.created_at desc
+--  limit 20;
 
 -- 2. All four policies should now carry the check. Expect 4 rows, true.
 --

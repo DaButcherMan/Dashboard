@@ -255,8 +255,14 @@ window.DASH = window.DASH || {};
     // Checked before anything is read or written, so a rejected account
     // never gets as far as looking like a working, empty planner.
     if (!(await isMember())) {
+      // Name the address. Without it the message is unfalsifiable from the
+      // outside — you cannot tell a wrong list from having signed in as
+      // someone other than who you meant to.
+      const who = (session.user && session.user.email) || '';
       await Cloud.signOut();
-      setStatus('signed-out', 'That account is not allowed to use this planner.');
+      setStatus('signed-out', who
+        ? who + ' is not on the list for this planner.'
+        : 'That account is not allowed to use this planner.');
       return;
     }
 

@@ -9,7 +9,7 @@
    Supabase library: it is loaded from a CDN on demand, and the app is
    built to work without it.
    ══════════════════════════════════════════ */
-const VERSION = 'dash-v13';
+const VERSION = 'dash-v14';
 const SHELL = [
   '/', '/index.html',
   '/css/dashboard.css',
