@@ -327,11 +327,25 @@ window.DASH = window.DASH || {};
     // Everywhere else the link is fine and fewer steps: Android shares
     // storage between Chrome and an installed PWA, and an uninstalled
     // mobile browser has only the one container to begin with.
+    // Is this address on the local list? Courtesy only — see config.js.
+    allowed(email) {
+      const list = cfg().ALLOWED_EMAILS;
+      if (!Array.isArray(list) || !list.length) return true;   // no list, no opinion
+      return list.some((e) => String(e).toLowerCase() === String(email || '').trim().toLowerCase());
+    },
+
     async signIn(email) {
       if (!client) throw new Error('Sync is not configured yet.');
+      const addr = String(email || '').trim();
+      if (!Cloud.allowed(addr)) throw new Error('That address is not allowed to use this planner.');
       const { error } = await client.auth.signInWithOtp({
-        email: String(email || '').trim(),
-        options: { shouldCreateUser: true },
+        email: addr,
+        // Deliberately false. This project is shared with another app, so
+        // creating users from here would put strangers into its auth.users
+        // — firing whatever it does on signup — and spend the hourly email
+        // quota on people who could never get in anyway. An account for a
+        // new person is invited from the Supabase dashboard instead.
+        options: { shouldCreateUser: false },
       });
       if (error) throw error;
     },

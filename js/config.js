@@ -20,6 +20,14 @@
    ══════════════════════════════════════════ */
 window.DASH = window.DASH || {};
 window.DASH.CONFIG = {
+  // Who may sign in. This is a courtesy check so an unlisted address gets a
+  // straight answer instead of a code that goes nowhere — it is NOT the
+  // restriction. Anyone can call the project directly with the key above and
+  // never load this file. The list that actually holds is the one in
+  // supabase/allowlist.sql; keep the two in step, and treat this one as a
+  // label rather than a lock.
+  ALLOWED_EMAILS: ['makotogaming@gmail.com'],
+
   SUPABASE_URL: 'https://mhgmyvgthogqsmossbht.supabase.co',
   SUPABASE_ANON_KEY: 'sb_publishable_WRQDo5aVAgqbSq9i_P8YQA_eYFnkgv4',
 };
