@@ -60,8 +60,15 @@ create index if not exists dashboard_records_sync_idx
 -- ── Row Level Security ─────────────────────────────────────────────────
 alter table public.dashboard_records enable row level security;
 
--- Force it even for the table owner, so a future service-role script
--- cannot quietly sidestep the rule.
+-- Force it for the table's owner too. Postgres exempts the owner from its
+-- own table's policies by default, which is a surprising way to leak a
+-- table you thought was locked.
+--
+-- What this does NOT stop: the project's `service_role` key. That role
+-- carries BYPASSRLS and ignores every policy on every table here, FORCE
+-- included. RLS is what keeps other *users of this project's apps* out of
+-- these rows; it is not what keeps out anyone holding that key or anyone
+-- invited to the project itself. Those people read everything.
 alter table public.dashboard_records force row level security;
 
 drop policy if exists "dashboard records are readable by their owner"  on public.dashboard_records;
