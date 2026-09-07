@@ -1,41 +1,54 @@
 # Turning on sync
 
-Four steps, about ten minutes. Until you finish them the dashboard runs
-exactly as it does now — everything in the browser, no account.
+Three steps, about ten minutes, inside a Supabase project you **already
+have**. The free tier limits projects, not tables, so the dashboard rides
+along in one of your existing two rather than needing a third.
 
-## 1. Create the project
+Everything this creates is prefixed `dashboard_`. It adds one table and
+four policies, and changes nothing that is already there — no existing
+table, no existing policy, and none of that project's auth settings.
 
-[supabase.com](https://supabase.com) → **New project**. Pick a region near
-you (US West for Pacific). Free tier is far more than this needs.
+## 1. Create the table
 
-## 2. Create the table
+Pick whichever of your two projects you expect to keep longest — if that
+project ever goes away, the dashboard's data goes with it.
 
 **SQL Editor → New query**, paste all of `schema.sql`, **Run**.
 
 Then run the three verification queries commented out at the bottom of that
 file. Do run them. A schema that looks right and a schema that is enforcing
-are different things, and the third one — `set local role anon; select
+are different things, and the third — `set local role anon; select
 count(*)` — is the only one that actually proves a stranger sees nothing.
 Expect `0`, not an error.
 
-## 3. Allow the sign-in link back to your site
+If that project has other users, this changes nothing for them: every
+policy is `auth.uid() = user_id`, so they cannot read a row of yours and
+you cannot read one of theirs.
 
-**Authentication → URL Configuration**:
+## 2. Put the code in the sign-in email
 
-- **Site URL** — your domain, e.g. `https://yourdomain.com`
-- **Redirect URLs** — add both of these:
-  - `https://yourdomain.com` (or `https://yourdomain.com/` if the site
-    lives at a path)
-  - `http://localhost:5599` — so sign-in works while developing
+**Authentication → Emails → Magic Link**, and add the token to the
+template, e.g.:
 
-A magic link that redirects anywhere not on this list is rejected. That
-restriction is the point: it stops a link minted for your project being
-bounced to somebody else's page with your session attached.
+```html
+<p>Your dashboard code is <b>{{ .Token }}</b></p>
+```
 
-Email sending works out of the box on the free tier, rate-limited to a few
-per hour. That is plenty for signing in on two or three devices.
+Keep the existing `{{ .ConfirmationURL }}` link if you like — it still
+works in a desktop browser. But the **code** is what you will actually use.
 
-## 4. Paste the keys
+### Why a code and not a link
+
+Tapping a link in your phone's mail app opens your browser. An app you have
+installed to the home screen has its own separate storage, so the session
+lands in Safari or Chrome and the icon you actually tap stays signed out,
+with nothing on screen explaining why. A code is typed into whichever copy
+of the app is asking for it, so it signs in the right one.
+
+This is also why there is nothing to configure under **URL Configuration**.
+Codes need no redirect, so your other app's auth settings stay untouched.
+
+## 3. Paste the keys
 
 **Project Settings → API**, copy into `js/config.js`:
 
@@ -44,14 +57,15 @@ per hour. That is plenty for signing in on two or three devices.
 | Project URL | `SUPABASE_URL` |
 | `anon` `public` | `SUPABASE_ANON_KEY` |
 
-Reload, open **Settings → Sync**, enter your email, and open the link it
-sends you on that device. Repeat on your phone with the same email address.
+Reload, open **Settings → Sync**, enter your email, and type the code that
+arrives. Then do exactly the same on your phone, with the same email
+address — same address means same account means the same dashboard.
 
 ### The one key that must never go in this repo
 
 The **`service_role`** key on that same page bypasses Row Level Security
-completely. In a client-side app it is a public file, and anyone who
-viewed source would have every row. Only the `anon` key belongs in
+completely, and it would bypass it for *both* apps in that project. In a
+client-side app it is a public file. Only the `anon` key belongs in
 `config.js`.
 
 The `anon` key, by contrast, is meant to be published. It names the project
@@ -70,5 +84,9 @@ backups and its logs to save retyping it once on your phone.
 
 ## If two devices disagree
 
-Last edit wins, per record. Deletes are kept as tombstones so a device that
-was offline when you deleted something cannot hand it back.
+Last edit wins, per record. Deletes are kept as tombstones, so a device
+that was offline when you deleted something cannot hand it back.
+
+Nothing waits on the network. The phone reads and writes from its own copy
+and catches up when it can, so the dashboard works the same on a bad
+signal as on wifi.

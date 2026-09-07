@@ -4,6 +4,13 @@
 --  Run once, in the Supabase dashboard: SQL Editor → New query → paste →
 --  Run. Safe to run again; every statement is guarded.
 --
+--  ── Sharing a project ────────────────────────────────────────────────
+--  This is designed to be dropped into a Supabase project that is already
+--  doing something else, because the free tier limits projects, not tables.
+--  Everything it creates is prefixed `dashboard_`, so it cannot collide
+--  with what is already there, and it touches no existing table, policy or
+--  auth setting.
+--
 --  ── Why one table ────────────────────────────────────────────────────
 --  The app already holds its data as JS objects and does all its querying
 --  in the browser. Mirroring each collection as its own typed table would
@@ -24,7 +31,7 @@
 -- ═══════════════════════════════════════════════════════════════════════
 
 -- ── The one table ──────────────────────────────────────────────────────
-create table if not exists public.records (
+create table if not exists public.dashboard_records (
   user_id     uuid        not null references auth.users (id) on delete cascade,
   collection  text        not null,
   id          text        not null,
@@ -42,50 +49,50 @@ create table if not exists public.records (
   primary key (user_id, collection, id)
 );
 
-comment on table public.records is
+comment on table public.dashboard_records is
   'One row per app record. Private per user via RLS; deletes are soft so they survive a sync from a stale device.';
 
 -- ── Indexes ────────────────────────────────────────────────────────────
 -- The only query the app makes: "everything of mine changed since X".
-create index if not exists records_sync_idx
-  on public.records (user_id, updated_at desc);
+create index if not exists dashboard_records_sync_idx
+  on public.dashboard_records (user_id, updated_at desc);
 
 -- ── Row Level Security ─────────────────────────────────────────────────
-alter table public.records enable row level security;
+alter table public.dashboard_records enable row level security;
 
 -- Force it even for the table owner, so a future service-role script
 -- cannot quietly sidestep the rule.
-alter table public.records force row level security;
+alter table public.dashboard_records force row level security;
 
-drop policy if exists "records are readable by their owner"   on public.records;
-drop policy if exists "records are writable by their owner"   on public.records;
-drop policy if exists "records are updatable by their owner"  on public.records;
-drop policy if exists "records are deletable by their owner"  on public.records;
+drop policy if exists "dashboard records are readable by their owner"  on public.dashboard_records;
+drop policy if exists "dashboard records are writable by their owner"  on public.dashboard_records;
+drop policy if exists "dashboard records are updatable by their owner" on public.dashboard_records;
+drop policy if exists "dashboard records are deletable by their owner" on public.dashboard_records;
 
-create policy "records are readable by their owner"
-  on public.records for select
+create policy "dashboard records are readable by their owner"
+  on public.dashboard_records for select
   using (auth.uid() = user_id);
 
 -- WITH CHECK is the half people forget. USING decides which rows you may
 -- touch; WITH CHECK decides what you may leave behind. Without it you
 -- could insert a row stamped with someone else's user_id.
-create policy "records are writable by their owner"
-  on public.records for insert
+create policy "dashboard records are writable by their owner"
+  on public.dashboard_records for insert
   with check (auth.uid() = user_id);
 
-create policy "records are updatable by their owner"
-  on public.records for update
+create policy "dashboard records are updatable by their owner"
+  on public.dashboard_records for update
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
-create policy "records are deletable by their owner"
-  on public.records for delete
+create policy "dashboard records are deletable by their owner"
+  on public.dashboard_records for delete
   using (auth.uid() = user_id);
 
 -- ── Stop the client setting someone else's user_id ─────────────────────
 -- The policy above already refuses it, but defaulting the column means the
 -- client never sends a user_id at all, so it cannot be wrong.
-alter table public.records
+alter table public.dashboard_records
   alter column user_id set default auth.uid();
 
 -- ═══════════════════════════════════════════════════════════════════════
@@ -99,19 +106,19 @@ alter table public.records
 --        relrowsecurity  as rls_enabled,
 --        relforcerowsecurity as rls_forced
 --   from pg_class
---  where oid = 'public.records'::regclass;
+--  where oid = 'public.dashboard_records'::regclass;
 
 -- 2. Four policies, each qualified by auth.uid(). Expect 4 rows, and every
 --    qual/with_check mentioning auth.uid().
 --
 -- select policyname, cmd, qual, with_check
 --   from pg_policies
---  where schemaname = 'public' and tablename = 'records'
+--  where schemaname = 'public' and tablename = 'dashboard_records'
 --  order by policyname;
 
 -- 3. The real test: a signed-out caller must see nothing. Run this from
 --    the SQL editor with the role set to anon.
 --
 -- set local role anon;
--- select count(*) from public.records;   -- expect 0, not an error and not a count
+-- select count(*) from public.dashboard_records;  -- expect 0, not an error, not a count
 -- reset role;

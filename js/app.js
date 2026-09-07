@@ -1559,6 +1559,10 @@ window.DASH = window.DASH || {};
     error:        ['Sync problem','late'],
   };
 
+  // Set between "send me a code" and typing it in. Kept in memory only:
+  // it is half of a sign-in, and it should not outlive the page.
+  let syncPending = '';
+
   function renderCloud() {
     const body = D.el('#sync-body');
     const state = D.el('#sync-state');
@@ -1568,6 +1572,18 @@ window.DASH = window.DASH || {};
     const word = SYNC_WORDS[st.phase] || ['', 'muted'];
     state.textContent = word[0];
     state.className = 'count ' + word[1];
+
+    // The Backup card's advice depends on whether anything else holds a
+    // copy, so it is written here rather than sitting stale in the markup.
+    const hint = D.el('#backup-hint');
+    if (hint) {
+      hint.textContent = C.signedIn
+        ? 'Your data is on this device and in your Supabase project. An export is still '
+          + 'the only copy that survives losing both, and the only one you can read '
+          + 'without either.'
+        : 'Data is stored in this browser only. Export now and then so a cleared cache '
+          + 'does not take your term with it.';
+    }
 
     if (!C.configured) {
       body.innerHTML = `
@@ -1580,16 +1596,34 @@ window.DASH = window.DASH || {};
       return;
     }
 
+    if (!C.signedIn && syncPending) {
+      // inputmode + autocomplete: on a phone this brings up the number pad
+      // and offers the code straight from the notification.
+      body.innerHTML = `
+        <p class="hint" style="margin-top:0">
+          Sent to <b>${esc(syncPending)}</b>. Enter the 6-digit code from that email.
+        </p>
+        <label class="field"><span>Code</span>
+          <input type="text" id="sync-code" inputmode="numeric" maxlength="6"
+                 autocomplete="one-time-code" placeholder="123456"></label>
+        <div style="display:flex; gap:8px; flex-wrap:wrap">
+          <button class="btn primary" data-act="cloud-verify">Sign in</button>
+          <button class="btn ghost" data-act="cloud-restart">Use a different email</button>
+        </div>`;
+      return;
+    }
+
     if (!C.signedIn) {
       body.innerHTML = `
         <label class="field" style="margin-top:0"><span>Email</span>
           <input type="email" id="sync-email" placeholder="you@example.com"
                  autocomplete="email"></label>
-        <button class="btn primary" data-act="cloud-signin">Email me a link</button>
+        <button class="btn primary" data-act="cloud-signin">Email me a code</button>
         ${st.phase === 'offline' ? '<p class="hint">No connection right now — the dashboard still works; sign in when you are back online.</p>' : ''}
         <p class="hint">
-          No password. You get a one-time link by email, and this browser stays
-          signed in afterwards. Your data is readable only by your account.
+          No password. A 6-digit code arrives by email and this device stays
+          signed in afterwards. Sign in the same way on your phone to have
+          both hold the same dashboard.
         </p>`;
       return;
     }
@@ -2382,16 +2416,31 @@ window.DASH = window.DASH || {};
       if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
       try {
         await D.Cloud.signIn(email);
-        D.el('#sync-body').innerHTML = `
-          <p class="hint" style="margin-top:0">
-            Check <b>${esc(email)}</b> for a sign-in link, then open it on this device.
-            The link signs you in; there is no password to remember or lose.
-          </p>`;
+        syncPending = email;
+        renderCloud();
       } catch (e) {
-        D.toast(e.message || 'Could not send the link');
+        D.toast(e.message || 'Could not send the code');
         renderCloud();
       }
     },
+
+    async 'cloud-verify'() {
+      const code = (D.el('#sync-code').value || '').replace(/\D/g, '');
+      if (code.length < 6) return D.toast('Enter the 6-digit code');
+      const btn = D.el('[data-act=cloud-verify]');
+      if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+      try {
+        await D.Cloud.verify(syncPending, code);
+        syncPending = '';
+        renderCloud();
+        D.toast('Signed in — syncing');
+      } catch (e) {
+        D.toast(e.message || 'That code did not work');
+        renderCloud();
+      }
+    },
+
+    'cloud-restart'() { syncPending = ''; renderCloud(); },
 
     async 'cloud-signout'() {
       await D.Cloud.signOut();
