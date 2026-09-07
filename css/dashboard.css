@@ -1237,3 +1237,11 @@ input:focus, select:focus, textarea:focus {
 .count.warn { color: var(--warn); }
 .count.late { color: var(--danger); }
 .hint.late  { color: var(--danger); }
+
+/* ── Backup status ────────────────────────────────────────────────────
+   Three short facts stacked under the export buttons: how stale your
+   last export is, how much room is left, and whether the browser has
+   agreed to keep any of it. */
+.backup-stats { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.backup-stats .hint { margin: 0; }
+.hint.warn { color: var(--warn); }

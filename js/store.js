@@ -49,6 +49,13 @@ window.DASH = window.DASH || {};
     // itself. Cleared once the server has been told.
     tombstones: [],
 
+    // Facts about this device rather than about your data. Never synced:
+    // each device exports its own file, so another device's export tells
+    // you nothing about whether *this* one is backed up.
+    device: {
+      lastExportAt: null,
+    },
+
     // Sync bookkeeping. Not a collection and never uploaded: it is this
     // device's notes about the server, and it lives outside `settings` so
     // that recording a sync does not look like a settings edit and bounce
@@ -136,6 +143,7 @@ window.DASH = window.DASH || {};
     s.exercises = parsed.exercises || [];
     s.tombstones = parsed.tombstones || [];
     s.sync = Object.assign({}, EMPTY.sync, parsed.sync || {});
+    s.device = Object.assign({}, EMPTY.device, parsed.device || {});
 
     // Sets used to live nested inside each session. Flatten them once so
     // the log can be read by exercise as well as by day; the day rows stay
@@ -362,6 +370,7 @@ window.DASH = window.DASH || {};
     // most recently edited copy, assuming the devices agree roughly on the
     // time. They do; they are all NTP-synced phones and laptops.
     get syncMeta() { return state.sync; },
+    get device() { return state.device; },
     get tombstones() { return state.tombstones; },
 
     // Strip the device-only keys, then hand back what may leave the device.
@@ -457,8 +466,39 @@ window.DASH = window.DASH || {};
       return state;
     },
 
+    // ── Durability ────────────────────────────────────────────────────
+    // Ask the browser to stop treating this data as disposable. Without it
+    // a browser clearing space may drop the lot, and on iOS Safari
+    // untouched site data can be cleared after about a week.
+    //
+    // Chrome and Firefox answer this honestly. Safari does not implement
+    // it meaningfully, which is why installing to the home screen — not
+    // this call — is what actually protects an iPhone.
+    async requestPersistence() {
+      const s = navigator.storage;
+      if (!s || !s.persist || !s.persisted) return null;   // unsupported
+      try {
+        if (await s.persisted()) return true;
+        return await s.persist();
+      } catch (e) {
+        return null;
+      }
+    },
+
+    // Size of what we store, in UTF-16 code units — the unit browsers
+    // actually bill localStorage in, so this is the number that matters
+    // rather than the origin quota, which is orders of magnitude larger
+    // and would give a falsely reassuring answer.
+    dataSize() { return JSON.stringify(state).length; },
+
     // ── Backup / restore ──────────────────────────────────────────────
     exportJSON() { return JSON.stringify(state, null, 2); },
+
+    async noteExport() {
+      state.device.lastExportAt = stamp();
+      await commit();
+      return state.device.lastExportAt;
+    },
 
     async importJSON(text) {
       const parsed = JSON.parse(text);

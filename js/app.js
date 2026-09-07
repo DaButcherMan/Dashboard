@@ -1573,18 +1573,6 @@ window.DASH = window.DASH || {};
     state.textContent = word[0];
     state.className = 'count ' + word[1];
 
-    // The Backup card's advice depends on whether anything else holds a
-    // copy, so it is written here rather than sitting stale in the markup.
-    const hint = D.el('#backup-hint');
-    if (hint) {
-      hint.textContent = C.signedIn
-        ? 'Your data is on this device and in your Supabase project. An export is still '
-          + 'the only copy that survives losing both, and the only one you can read '
-          + 'without either.'
-        : 'Data is stored in this browser only. Export now and then so a cleared cache '
-          + 'does not take your term with it.';
-    }
-
     if (!C.configured) {
       body.innerHTML = `
         <p class="hint" style="margin-top:0">
@@ -1645,9 +1633,78 @@ window.DASH = window.DASH || {};
       </p>`;
   }
 
+  // ── Backup ──────────────────────────────────────────────────────────
+  // Set once at startup by the persistence request, so the panel can say
+  // whether the browser has agreed to keep this data or merely not to
+  // delete it yet.
+  let persisted = null;
+
+  // localStorage is capped somewhere near 5 MB in every browser that
+  // matters. Warn well before it, because the failure mode is a save that
+  // does not happen rather than an error you would notice.
+  const STORE_CAP = 5 * 1024 * 1024;
+  const WARN_AT = 0.7;
+  const STALE_DAYS = 14;
+
+  function fmtSize(n) {
+    return n < 1024 ? n + ' B'
+         : n < 1024 * 1024 ? (n / 1024).toFixed(0) + ' KB'
+         : (n / 1024 / 1024).toFixed(1) + ' MB';
+  }
+
+  function renderBackup() {
+    const box = D.el('#backup-status');
+    const hint = D.el('#backup-hint');
+    if (!box) return;
+
+    const size = S().dataSize();
+    const last = S().device.lastExportAt;
+    const days = last ? D.daysBetween(D.dayKey(new Date(last)), D.today()) : null;
+    const synced = D.Cloud.signedIn;
+
+    const rows = [];
+
+    // How long since the only copy you can read without this browser.
+    if (last === null) {
+      rows.push(['late', 'Never exported'
+        + (synced ? '' : ' — this browser holds the only copy of your data')]);
+    } else if (days >= STALE_DAYS) {
+      rows.push(['late', 'Last exported ' + days + ' days ago']);
+    } else {
+      rows.push(['', 'Last exported ' + (days === 0 ? 'today' : days + 'd ago')]);
+    }
+
+    // Headroom, measured against the cap that actually bites.
+    const pct = size / STORE_CAP;
+    rows.push([pct >= WARN_AT ? 'late' : '',
+      fmtSize(size) + ' stored'
+      + (pct >= WARN_AT ? ' — near the ~5 MB browser limit' : '')]);
+
+    // Whether the browser has agreed to keep it.
+    if (persisted === true) {
+      rows.push(['', 'Storage marked persistent']);
+    } else if (persisted === false) {
+      rows.push(['warn', 'The browser may clear this data to free space']);
+    }
+
+    box.innerHTML = '<div class="backup-stats">' + rows.map(([cls, text]) =>
+      `<span class="hint ${cls}">${esc(text)}</span>`).join('') + '</div>';
+
+    if (hint) {
+      hint.textContent = synced
+        ? 'Your data is on this device and in your Supabase project. An export is still '
+          + 'the only copy that survives losing both, and the only one you can read '
+          + 'without either.'
+        : 'This device holds the only copy. Export to a file your phone actually keeps — '
+          + 'iCloud Drive or Google Drive — because a replaced phone or cleared browser '
+          + 'takes everything else with it.';
+    }
+  }
+
   // ── Settings ────────────────────────────────────────────────────────
   function renderSettings() {
     renderCloud();
+    renderBackup();
     const s = S().settings;
     D.el('#set-name').value   = s.name || '';
     D.el('#set-proxy').value  = s.proxyUrl || '';
@@ -2396,13 +2453,18 @@ window.DASH = window.DASH || {};
         });
     },
 
-    export() {
+    async export() {
       const blob = new Blob([S().exportJSON()], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = 'dashboard-backup-' + D.today() + '.json';
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      // Recorded on the way out rather than on success: a browser gives no
+      // callback for a download, so the honest claim is "you asked for one
+      // on this date", which is what the panel says.
+      await S().noteExport();
+      renderBackup();
     },
 
     import() { D.el('#import-file').click(); },
@@ -3011,6 +3073,13 @@ window.DASH = window.DASH || {};
     // is fully usable whether or not it is configured or reachable.
     D.Cloud.onStatus(() => { if (view === 'settings') renderCloud(); });
     D.Cloud.init();
+
+    // Unawaited: this is a request the browser may take its time over, and
+    // nothing on screen depends on the answer.
+    S().requestPersistence().then((ok) => {
+      persisted = ok;
+      if (view === 'settings') renderBackup();
+    });
 
     // Keep "now" honest without a reload.
     setInterval(() => { if (view === 'overview') renderOverview(); }, 60000);
