@@ -229,10 +229,36 @@ window.DASH = window.DASH || {};
     pushTimer = setTimeout(() => Cloud.sync(), ms);
   }
 
+  // Is this account on the list? Asked of the database, which is where the
+  // list lives — the app has no copy to disagree with.
+  //
+  // Fails OPEN on purpose. A missing function means allowlist.sql was never
+  // run, and locking someone out of their own planner because an optional
+  // extra is not installed would be its own bug. Nothing is lost by being
+  // generous here: the policies still refuse to hand over a single row, so
+  // this check decides only whether we can say why.
+  async function isMember() {
+    try {
+      const { data, error } = await client.rpc('dashboard_allowed');
+      if (error) return true;
+      return data !== false;
+    } catch (e) {
+      return true;
+    }
+  }
+
   // ── Session ─────────────────────────────────────────────────────────
   async function adopt(next) {
     session = next || null;
     if (!session) { setStatus('signed-out'); return; }
+
+    // Checked before anything is read or written, so a rejected account
+    // never gets as far as looking like a working, empty planner.
+    if (!(await isMember())) {
+      await Cloud.signOut();
+      setStatus('signed-out', 'That account is not allowed to use this planner.');
+      return;
+    }
 
     const uid = session.user.id;
     const known = D.Store.syncMeta.userId;
@@ -327,17 +353,9 @@ window.DASH = window.DASH || {};
     // Everywhere else the link is fine and fewer steps: Android shares
     // storage between Chrome and an installed PWA, and an uninstalled
     // mobile browser has only the one container to begin with.
-    // Is this address on the local list? Courtesy only — see config.js.
-    allowed(email) {
-      const list = cfg().ALLOWED_EMAILS;
-      if (!Array.isArray(list) || !list.length) return true;   // no list, no opinion
-      return list.some((e) => String(e).toLowerCase() === String(email || '').trim().toLowerCase());
-    },
-
     async signIn(email) {
       if (!client) throw new Error('Sync is not configured yet.');
       const addr = String(email || '').trim();
-      if (!Cloud.allowed(addr)) throw new Error('That address is not allowed to use this planner.');
       const { error } = await client.auth.signInWithOtp({
         email: addr,
         // Deliberately false. This project is shared with another app, so

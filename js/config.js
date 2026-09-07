@@ -20,13 +20,14 @@
    ══════════════════════════════════════════ */
 window.DASH = window.DASH || {};
 window.DASH.CONFIG = {
-  // Who may sign in. This is a courtesy check so an unlisted address gets a
-  // straight answer instead of a code that goes nowhere — it is NOT the
-  // restriction. Anyone can call the project directly with the key above and
-  // never load this file. The list that actually holds is the one in
-  // supabase/allowlist.sql; keep the two in step, and treat this one as a
-  // label rather than a lock.
-  ALLOWED_EMAILS: ['makotogaming@gmail.com'],
+  // Who may sign in is NOT configured here. It lives in the
+  // dashboard_members table (see supabase/allowlist.sql), because a list in
+  // this file would be a label rather than a lock — the key below is public,
+  // so anyone can call the project without ever loading this JavaScript.
+  //
+  // Keeping it in one place also means adding someone is a single row in the
+  // Table Editor, with nothing to redeploy and no chance of the two lists
+  // drifting apart.
 
   SUPABASE_URL: 'https://mhgmyvgthogqsmossbht.supabase.co',
   SUPABASE_ANON_KEY: 'sb_publishable_WRQDo5aVAgqbSq9i_P8YQA_eYFnkgv4',

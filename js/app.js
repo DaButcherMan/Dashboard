@@ -1646,6 +1646,9 @@ window.DASH = window.DASH || {};
   // keeps out strangers, not someone holding your unlocked phone.
   let lockStep = 'checking';
   let lockEmail = '';
+  // Held separately from Cloud's status so a stale message from an earlier
+  // attempt cannot bounce a later, legitimate one back to the form.
+  let lockError = '';
 
   function gateOpen() {
     const C = D.Cloud;
@@ -1678,8 +1681,13 @@ window.DASH = window.DASH || {};
       const f = D.el('#lock-code'); if (f) setTimeout(() => f.focus(), 60);
       return;
     }
+    // A refusal from the database arrives as a status message. Saying so
+    // beats bouncing back to a blank form, which reads as "try again" when
+    // trying again cannot possibly work.
+    const msg = lockError;
     body.innerHTML = `
-      <p class="hint">Sign in to open your planner.</p>
+      ${msg ? `<p class="hint late">${esc(msg)}</p>`
+            : '<p class="hint">Sign in to open your planner.</p>'}
       <label class="field"><span>Email</span>
         <input type="email" id="lock-email" placeholder="you@example.com"
                autocomplete="email"></label>
@@ -2563,6 +2571,7 @@ window.DASH = window.DASH || {};
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return D.toast('Enter your email address');
       const btn = D.el('[data-act=lock-signin]');
       if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+      lockError = '';
       try {
         await D.Cloud.signIn(email);
         lockEmail = email; lockStep = 'code'; renderLock();
@@ -3161,6 +3170,13 @@ window.DASH = window.DASH || {};
     renderLock();
     D.Cloud.onStatus(() => {
       if (lockStep === 'checking' && !D.Cloud.signedIn) lockStep = 'signin';
+      // The code was right but the account is not on the list. Come back to
+      // the form carrying the reason, rather than sitting on a code prompt
+      // that reads as "try again" when trying again cannot work.
+      if (lockStep === 'code' && !D.Cloud.signedIn && D.Cloud.status.message) {
+        lockError = D.Cloud.status.message;
+        lockStep = 'signin';
+      }
       renderLock();
       if (view === 'settings') renderCloud();
       render();
