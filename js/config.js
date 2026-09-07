@@ -20,6 +20,6 @@
    ══════════════════════════════════════════ */
 window.DASH = window.DASH || {};
 window.DASH.CONFIG = {
-  SUPABASE_URL: '',
-  SUPABASE_ANON_KEY: '',
+  SUPABASE_URL: 'https://mhgmyvgthogqsmossbht.supabase.co/rest/v1/',
+  SUPABASE_ANON_KEY: 'sb_publishable_WRQDo5aVAgqbSq9i_P8YQA_eYFnkgv4',
 };
