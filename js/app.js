@@ -1589,11 +1589,11 @@ window.DASH = window.DASH || {};
       // and offers the code straight from the notification.
       body.innerHTML = `
         <p class="hint" style="margin-top:0">
-          Sent to <b>${esc(syncPending)}</b>. Enter the 6-digit code from that email.
+          Sent to <b>${esc(syncPending)}</b>. Enter the code from that email.
         </p>
         <label class="field"><span>Code</span>
-          <input type="text" id="sync-code" inputmode="numeric" maxlength="6"
-                 autocomplete="one-time-code" placeholder="123456"></label>
+          <input type="text" id="sync-code" inputmode="numeric" maxlength="10"
+                 autocomplete="one-time-code" placeholder="Code from the email"></label>
         <div style="display:flex; gap:8px; flex-wrap:wrap">
           <button class="btn primary" data-act="cloud-verify">Sign in</button>
           <button class="btn ghost" data-act="cloud-restart">Use a different email</button>
@@ -1609,7 +1609,7 @@ window.DASH = window.DASH || {};
         <button class="btn primary" data-act="cloud-signin">Email me a code</button>
         ${st.phase === 'offline' ? '<p class="hint">No connection right now — the dashboard still works; sign in when you are back online.</p>' : ''}
         <p class="hint">
-          No password. A 6-digit code arrives by email and this device stays
+          No password. A short code arrives by email and this device stays
           signed in afterwards. Sign in the same way on your phone to have
           both hold the same dashboard.
         </p>`;
@@ -1672,10 +1672,10 @@ window.DASH = window.DASH || {};
     }
     if (lockStep === 'code') {
       body.innerHTML = `
-        <p class="hint">Enter the 6-digit code sent to <b>${esc(lockEmail)}</b>.</p>
+        <p class="hint">Enter the code sent to <b>${esc(lockEmail)}</b>.</p>
         <label class="field"><span>Code</span>
-          <input type="text" id="lock-code" inputmode="numeric" maxlength="6"
-                 autocomplete="one-time-code" placeholder="123456"></label>
+          <input type="text" id="lock-code" inputmode="numeric" maxlength="10"
+                 autocomplete="one-time-code" placeholder="Code from the email"></label>
         <button class="btn primary" data-act="lock-verify">Sign in</button>
         <button class="btn ghost" data-act="lock-restart">Use a different email</button>`;
       const f = D.el('#lock-code'); if (f) setTimeout(() => f.focus(), 60);
@@ -2550,7 +2550,7 @@ window.DASH = window.DASH || {};
 
     async 'cloud-verify'() {
       const code = (D.el('#sync-code').value || '').replace(/\D/g, '');
-      if (code.length < 6) return D.toast('Enter the 6-digit code');
+      if (code.length < 6) return D.toast('That code looks too short');
       const btn = D.el('[data-act=cloud-verify]');
       if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
       try {
@@ -2583,7 +2583,7 @@ window.DASH = window.DASH || {};
 
     async 'lock-verify'() {
       const code = (D.el('#lock-code').value || '').replace(/\D/g, '');
-      if (code.length < 6) return D.toast('Enter the 6-digit code');
+      if (code.length < 6) return D.toast('That code looks too short');
       const btn = D.el('[data-act=lock-verify]');
       if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
       try {
